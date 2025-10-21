@@ -6,14 +6,10 @@ dist/
 wheels/
 *.egg-info
 
-# Virtual environments
-.venv
-
-# macOS
+# etc
+.venv/
 .DS_Store
-
-# ai
+.vscode/
 .gemini/
 GEMINI.md
-
 data/
