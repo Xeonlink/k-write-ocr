@@ -292,6 +292,72 @@ def image_filter_korean_inplace(
     console.print(f"[green]🎉 모든 작업이 완료되었습니다.[/]")
 
 
+@app.command("split", help="train/test 데이터셋으로 분리합니다.")
+def meta_split_inplace(
+    yes: Annotated[bool, typer.Option(help="확인없이 진행")] = False,
+    train_ratio: Annotated[float, typer.Option(help="train 데이터셋 비율")] = 0.8,
+) -> None:
+    # 파라미터 검증
+    if train_ratio <= 0 or train_ratio >= 1:
+        console.print(f"[red]--train_ratio 는 0보다 크고 1 보다 작은 값이어야 합니다.[/]")
+        return
+
+    # 작업 설명 출력하기
+    if not yes:
+        panel_content = "\n".join(
+            [
+                f"📂 데이터셋 폴더의 경로",
+                f"[blue]./{DATA_DIR}[/]",
+                f"",
+                f"[green]Jobs[/]",
+                f"- {DATA_DIR}/labels.csv 에서 train/test 데이터셋으로 분리합니다.",
+                f"- {DATA_DIR}/train_labels.csv 파일을 생성하거나 덮어씁니다.",
+                f"- {DATA_DIR}/test_labels.csv 파일을 생성하거나 덮어씁니다.",
+                f"- {DATA_DIR}/images 폴더는 그대로 유지합니다.",
+                f"- 전체 데이터 중, [yellow]{train_ratio * 100:.1f}%[/]를 [yellow]train 데이터[/]로 사용합니다.",
+                f"",
+                f"이 작업은 되돌릴 수 없습니다.",
+            ]
+        )
+        panel = Panel(
+            panel_content,
+            title="Split Data",
+            title_align="left",
+            border_style="green bold",
+            padding=(1, 2),
+        )
+        console.print(panel)
+
+        if not typer.confirm(f"진행하시겠습니까?"):
+            console.print("Operation cancelled.", style="red")
+            return
+
+    # 작업하기
+    labels_csv_path = DATA_DIR / "labels.csv"
+    if not labels_csv_path.exists():
+        console.print(f"[red]{labels_csv_path} 파일을 찾을 수 없습니다.[/]")
+        return
+
+    with open(labels_csv_path, "r", encoding="utf-8") as f:
+        rows = list(csv.reader(f))
+
+    train_count = int(len(rows) * train_ratio)
+    train_rows = rows[:train_count]
+    test_rows = rows[train_count:]
+
+    with open(DATA_DIR / "train_labels.csv", "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(train_rows)
+
+    with open(DATA_DIR / "test_labels.csv", "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(test_rows)
+
+    # 작업 결과 출력하기
+    console.print("")
+    console.print(f"[green]🎉 모든 작업이 완료되었습니다.[/]")
+
+
 @app.command("drop", help="전체 데이터 파일의 수를 줄입니다. (학습이 오래걸리는 경우)")
 def image_drop_inplace(
     count: Annotated[int, typer.Argument(help="삭제할 데이터 수 \n(0: 필터에 걸리는 모든 파일 삭제)")] = 100,

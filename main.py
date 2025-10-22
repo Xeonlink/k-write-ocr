@@ -14,7 +14,7 @@ with yaspin(text="Module Loading..."):
     from commands.data import app as data_app
     from commands.preprocess import app as preprocess_app
     from commands.train import app as train_app
-    from utils import APP_NAME
+    from constants import APP_NAME
 
 
 def main():
