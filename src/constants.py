@@ -6,7 +6,6 @@ from rich.console import Console
 APP_NAME = "K-Write-OCR"
 DATA_DIR = Path("data")
 UINT8_MAX = np.iinfo(np.uint8).max
-BACKWARD_INIT_VALUE = 1
 MAX_LABEL_LENGTH = 10
 
 console = Console()

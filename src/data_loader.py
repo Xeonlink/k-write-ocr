@@ -1,4 +1,5 @@
 import csv
+import math
 from collections import abc
 from pathlib import Path
 
@@ -9,16 +10,16 @@ from codec import Codec
 from constants import DATA_DIR, MAX_LABEL_LENGTH
 
 
-class DataLoader(abc.Sequence):
+class DataLoader[T](abc.Sequence[T]):
 
     def __len__(self) -> int:
         raise NotImplementedError
 
-    def __getitem__(self, index: int) -> tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, index: int) -> T:
         raise NotImplementedError
 
 
-class LanguageDataLoader(DataLoader):
+class LanguageDataLoader(DataLoader[tuple[np.ndarray, np.ndarray]]):
     def __init__(self, metafile_path: Path, codec: Codec, batch_size: int = 100):
         self.batch_size = batch_size
         self.codec = codec
@@ -29,15 +30,15 @@ class LanguageDataLoader(DataLoader):
         self.data_list = data_list
 
     def load_image(self, image_path: Path) -> np.ndarray:
+        """주의: 이미지가 gray scale인 경우에만 작동합니다."""
         img: np.ndarray = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED)
         img = img[np.newaxis, :, :]
         return img
 
     def __len__(self) -> int:
-        data_count = len(self.data_list)
-        return data_count // self.batch_size + 1 if data_count % self.batch_size != 0 else 0
+        return math.ceil(len(self.data_list) / self.batch_size)
 
-    def __getitem__(self, index: int) -> tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, index: int):
         batch = self.data_list[index * self.batch_size : (index + 1) * self.batch_size]
 
         # image ndarray 생성
