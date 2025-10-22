@@ -12,8 +12,7 @@ from rich.progress import track
 from rich.table import Table, box
 from yaspin import yaspin
 
-from constants import DATA_DIR
-from shared.console import console
+from constants import DATA_DIR, console
 
 app = typer.Typer(
     name="data",
@@ -60,8 +59,9 @@ def unzip_raw(
     for zip_path in zip_files:
         exist_zip_files_flag = True
         zip_file = Path(zip_path)
-        with zipfile.ZipFile(zip_file, "r") as zip_ref:
-            zip_ref.extractall(zip_file.parent)
+        with yaspin(text=f"Unzipping {zip_file}"):
+            with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                zip_ref.extractall(zip_file.parent)
         console.print(f"[Unzip] {zip_file}")
         zip_file.unlink()
         console.print(f"[Remove] {zip_file}")
@@ -110,34 +110,29 @@ def compact_data(
             return
 
     # 작업하기
-    json_files = glob.iglob(str(DATA_DIR / "**" / "*.json"), recursive=True)
-    png_files = glob.iglob(str(DATA_DIR / "**" / "*.png"), recursive=True)
-    exist_json_files_flag = False
-    exist_png_files_flag = False
-
-    for src_path in json_files:
-        exist_json_files_flag = True
-        src_file = Path(src_path)
-        dest_file = DATA_DIR / "labels" / src_file.name
-        dest_file.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(src_path, dest_file)
-        console.print(f"[Move] {src_file}")
-
-    if not exist_json_files_flag:
+    json_files = list(DATA_DIR.rglob("*.json"))
+    if not json_files:
         console.print(f"[red]JSON 파일이 존재하지 않습니다.[/]")
         return
 
-    for src_path in png_files:
-        exist_png_files_flag = True
-        src_file = Path(src_path)
-        dest_file = DATA_DIR / "images" / src_file.name
-        dest_file.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(src_path, dest_file)
-        console.print(f"[Move] {src_file}")
-
-    if not exist_png_files_flag:
+    png_files = list(DATA_DIR.rglob("*.png"))
+    if not png_files:
         console.print(f"[red]PNG 파일이 존재하지 않습니다.[/]")
         return
+
+    json_dest_dir = DATA_DIR / "labels"
+    json_dest_dir.mkdir(parents=True, exist_ok=True)
+    console.print(f"[Create] {json_dest_dir}")
+
+    png_dest_dir = DATA_DIR / "images"
+    png_dest_dir.mkdir(parents=True, exist_ok=True)
+    console.print(f"[Create] {png_dest_dir}")
+
+    for src_path in track(json_files, description="JSON 파일 이동 중"):
+        shutil.move(src_path, json_dest_dir / src_path.name)
+
+    for src_path in track(png_files, description="PNG 파일 이동 중"):
+        shutil.move(src_path, png_dest_dir / src_path.name)
 
     # 나머지 폴더 삭제하기
     for dir_path in DATA_DIR.iterdir():
@@ -268,7 +263,8 @@ def drop_data(
 @app.command("info", help=f"{DATA_DIR}/**/*.png 들의 통계정보를 출력합니다.")
 def image_info() -> None:
     # 데이터 불러오기
-    image_files = list(DATA_DIR.rglob("*.png"))
+    with yaspin(text="PNG 목록 불러오는 중"):
+        image_files = list(DATA_DIR.rglob("*.png"))
     if not image_files:
         console.print(f"[red]{DATA_DIR}/**/*.png 파일을 찾을 수 없습니다.[/]")
         return

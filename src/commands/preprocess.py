@@ -4,16 +4,14 @@ import re
 import shutil
 from typing import Annotated, Literal
 
-import cv2
 import numpy as np
 import typer
 from PIL import Image
 from rich.panel import Panel
 from rich.progress import track
 
-from constants import DATA_DIR
+from constants import DATA_DIR, console
 from model.label_file import LabelFile
-from shared.console import console
 
 app = typer.Typer(
     name="preprocess",
@@ -76,42 +74,43 @@ def crop_source_inplace(
         console.print(f"[red]labels/ 폴더에 처리할 json파일이 없습니다.[/]")
         return
 
-    output_rows = []
+    with open(output_csv, "w", encoding="utf-8", newline="") as f:
+        counter = 0  # 전체 카운터
+        writer = csv.writer(f)
 
-    for label_path in track(label_files, description="소스 이미지 자르는 중"):
-        try:
-            with open(label_path, "r", encoding="utf-8") as f:
-                label_data = json.load(f)
-            label = LabelFile(**label_data)
-        except Exception as e:
-            console.print(f"[red][실패] {label_path}: {e}[/]")
-            continue
+        for label_path in track(label_files, description="소스 이미지 자르는 중"):
+            try:
+                with open(label_path, "r", encoding="utf-8") as lf:
+                    label_data = json.load(lf)
+                label = LabelFile(**label_data)
+            except Exception as e:
+                console.print(f"[red][실패] {label_path}: {e}[/]")
+                continue
 
-        image_path = images_dir / (label_path.stem + ".png")
-        pil_img = Image.open(image_path)
+            image_path = images_dir / (label_path.stem + ".png")
+            pil_img = Image.open(image_path)
 
-        for idx, bbox in enumerate(label.bbox, 1):
-            x_min, x_max = min(bbox.x), max(bbox.x)
-            y_min, y_max = min(bbox.y), max(bbox.y)
-            cropped = pil_img.crop((x_min, y_min, x_max, y_max))
+            for bbox in label.bbox:
+                x_min, x_max = min(bbox.x), max(bbox.x)
+                y_min, y_max = min(bbox.y), max(bbox.y)
+                cropped = pil_img.crop((x_min, y_min, x_max, y_max))
 
-            cropped_image_path = images_dir / (label_path.stem + f"_{idx}.png")
-            cropped.save(cropped_image_path)
+                # counter를 1000 단위로 나눠 2단 폴더 구조 만들기
+                first = counter // 1_000
+                second = counter % 1_000
+                cropped_image_path = DATA_DIR / "images" / f"{first:03d}" / f"{second:03d}.png"
+                cropped_image_path.parent.mkdir(parents=True, exist_ok=True)
+                cropped.save(cropped_image_path)
 
-            output_rows.append({"image_path": str(cropped_image_path.relative_to(DATA_DIR)), "label": bbox.data})
-            console.print(f"[Crop] {cropped_image_path}")
+                image_path_for_csv = cropped_image_path.relative_to(DATA_DIR)
+                # 바로 csv.writer로 기록 (경로, 라벨 순서)
+                writer.writerow([str(image_path_for_csv), bbox.data])
 
-        label_path.unlink()
-        console.print(f"[Remove] {label_path}")
+                counter += 1
 
-        image_path.unlink()
-        console.print(f"[Remove] {image_path}")
+            label_path.unlink()
+            image_path.unlink()
 
-    # Write CSV
-    if output_rows:
-        with open(output_csv, "w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["image_path", "label"])
-            writer.writerows(output_rows)
         console.print(f"[Write] {output_csv}")
 
     shutil.rmtree(labels_dir)
@@ -203,7 +202,7 @@ def image_resize_inplace(
                 f"[blue]./{DATA_DIR}[/]",
                 f"",
                 f"[green]Jobs[/]",
-                f"- {DATA_DIR}/**/*.png 파일을 크기를 [yellow]{width}x{height}[/]로 변경합니다.",
+                f"- {DATA_DIR}/**/*.png 파일의 크기를 [yellow]{width}x{height}[/]로 변경합니다.",
                 f"- [yellow]{algo}[/] 알고리즘을 사용합니다.",
                 f"",
                 f"이 작업은 되돌릴 수 없습니다.",
@@ -275,23 +274,18 @@ def image_filter_korean_inplace(
         console.print(f"[red]{labels_csv_path} 파일을 찾을 수 없습니다.[/]")
         return
 
-    rows: list[list[str]] = []
-    filtered_rows: list[list[str]] = []
-
     with open(labels_csv_path, "r", encoding="utf-8") as f:
         rows = list(csv.reader(f))
 
     korean_pattern = re.compile(r"^[ㄱ-ㅣ가-힣]+$")
-    filtered_rows = [row for row in rows if korean_pattern.match(row[1])]
-    deleted_rows = [row for row in rows if row not in filtered_rows]
-
-    for row in track(deleted_rows, description="한글 필터링 중"):
-        img_path = DATA_DIR / row[0]
-        img_path.unlink(missing_ok=True)  # 파일이 없어도 에러 발생하지 않음
-
     with open(labels_csv_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
-        writer.writerows(filtered_rows)
+        for row in track(rows, description="한글 필터링 중"):
+            if korean_pattern.match(row[1]):
+                writer.writerow(row)
+            else:
+                img_path = DATA_DIR / row[0]
+                img_path.unlink(missing_ok=True)  # 파일이 없어도 에러 발생하지 않음
 
     # 작업 결과 출력하기
     console.print("")
