@@ -45,8 +45,10 @@ class KoreanCodec(Codec):
                 else:
                     자소들.append(한글문자[j][자소위치])
 
-            if 자소들[0] != 공백문자 and 자소들[1] != 공백문자:
+            if 자소들[0] != 공백문자 and 자소들[1] != 공백문자 and 자소들[2] != 공백문자:
                 철자들.append(j2h(*자소들))
+            elif 자소들[0] != 공백문자 and 자소들[1] != 공백문자 and 자소들[2] == 공백문자:
+                철자들.append(j2h(자소들[0], 자소들[1]))
             else:
                 철자들.append(공백문자)
 
