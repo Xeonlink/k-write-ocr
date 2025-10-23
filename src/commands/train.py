@@ -8,8 +8,8 @@ from rich.table import Table, box
 
 from codec import KoreanCodec
 from common import nn
-from common.optimizer import Adam
-from constants import DATA_DIR, MAX_LABEL_LENGTH, UINT8_MAX, console
+from common.optimizer import Adam, Momentum
+from constants import DATA_DIR, MAX_LABEL_LENGTH, PRECISION, UINT8_MAX, console
 from data_loader import LanguageDataLoader
 from net import KOCRNet
 
@@ -25,10 +25,15 @@ def train(
     yes: Annotated[bool, typer.Option(help="확인없이 진행")] = False,
     max_epoch: Annotated[int, typer.Option(help="학습 에폭 수")] = 30,
     batch_size: Annotated[int, typer.Option(help="배치 크기")] = 32,
-    patience: Annotated[int, typer.Option(help="Early stopping 인내 횟수")] = 5,
+    patience: Annotated[int, typer.Option(help="Early stopping 인내 횟수")] = None,
     debug: Annotated[bool, typer.Option(help="디버깅 모드")] = False,
     # verbose: Annotated[bool, typer.Option(help="상세 로깅 여부")] = False,
 ) -> None:
+    # 파라미터 검증
+    if patience is not None and patience <= 0:
+        console.print(f"[red]--patience 는 0보다 큰 값이어야 합니다.[/]")
+        return
+
     # 작업 설명 출력하기
     if not yes:
         panel_content = "\n".join(
@@ -62,7 +67,7 @@ def train(
         DATA_DIR / "train_labels.csv",
         codec,
         batch_size,
-        max_data_count=batch_size * 3 if debug else None,
+        max_data_count=batch_size * 10 if debug else None,
     )
     test_loader = LanguageDataLoader(
         DATA_DIR / "test_labels.csv",
@@ -71,11 +76,12 @@ def train(
         max_data_count=batch_size * 1 if debug else None,
     )
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = Adam(lr=0.01, beta1=0.9, beta2=0.999)
+    criterion = nn.SoftmaxWithLoss()
+    optimizer = Adam(lr=0.001, beta1=0.9, beta2=0.999)
+    # optimizer = Momentum(lr=0.01, momentum=0.9)
     model = KOCRNet(
         input_shape=(1, 260, 660),
-        output_shape=(10, 3, 28),
+        output_shape=(MAX_LABEL_LENGTH, 3, 28),
     )
 
     # Early stopping 변수
@@ -87,58 +93,62 @@ def train(
         train_losses = []
         for i, (x, t) in enumerate(train_loader):
             # 0~1 범위로 정규화
-            x = x.astype(np.float32) / UINT8_MAX
-            t = t.astype(np.float32)
+            x = np.clip(x.astype(PRECISION) / UINT8_MAX, 0, 1)
+            t = np.clip(t.astype(PRECISION), 0, 1)
 
             # 모델 학습
-            B, L, M, S = t.shape  # B: batch size, L: max label length, M: letter member, S: character set size
+            B, L, M, S = t.shape
             pred = model.forward(x)  # foward 값 계산 (gradient 계산 때 사용)
             pred = pred.reshape(B * L * M, S)
             t = t.reshape(B * L * M, S)
             loss = criterion.forward(pred, t)  # 손실 계산
             dout = criterion.backward()  # gradient 계산
             model.backward(dout)  # gradient 계산
-            grads = model.gradient()  # gradient 값 추출
+            grads = model.gradient()  # gradient 추출
             optimizer.update(model.params, grads)  # 파라미터 update
             train_losses.append(loss)
             console.print(f"Epoch: {epoch+1}, Iter: {i+1}, Loss: {loss}")
 
         total_count = len(test_loader)
         correct_count = 0
-        saved_decoded_pred = []
-        saved_decoded_t = []
+        preds = []
+        ts = []
         for x, t in track(test_loader, description="Testing..."):
             # 0~1 범위로 정규화
-            x = x.astype(np.float32) / UINT8_MAX
-            t = t.astype(np.float32)
+            x = np.clip(x.astype(PRECISION) / UINT8_MAX, 0, 1)
+            t = np.clip(t.astype(PRECISION), 0, 1)
 
             # 모델 평가
+            B, L, M, S = t.shape
             pred = model.forward(x, is_train=False)
-            decoded_pred = [codec.decode(pred_) for pred_ in pred]
-            decoded_t = [codec.decode(t_) for t_ in t]
+            decoded_pred = [codec.decode2자소나열(pred_) for pred_ in pred]
+            decoded_t = [codec.decode2자소나열(t_) for t_ in t]
             correct_count += sum(1 for pred, true in zip(decoded_pred, decoded_t) if pred == true)
-            saved_decoded_pred.extend(decoded_pred)
-            saved_decoded_t.extend(decoded_t)
+            preds.append(pred)
+            ts.append(t)
 
         if debug:
             table = Table(header_style="green", box=box.ROUNDED)
-            table.add_column("예측 -> 정답")
-            for pred, true in zip(decoded_pred, decoded_t):
-                table.add_row(f"{pred} -> {true}")
+            table.add_column("예측 자소나열")
+            table.add_column("예측 단어")
+            table.add_column("정답 단어")
+            for pred, t in zip(preds, ts):
+                for pred_, t_ in zip(pred, t):
+                    table.add_row(pred_, codec.decode2단어(pred_), codec.decode2단어(t_))
 
-            console.print(f"")
             console.print(table)
 
         accuracy = correct_count / total_count * 100
         console.print(f"Accuracy: {accuracy:03f}")
 
         # Early Stopping 확인
-        if accuracy > best_accuracy:
-            best_accuracy = accuracy
-            patience_counter = 0
-        else:
-            patience_counter += 1
-            console.print(f"[yellow]patience: {patience_counter} / {patience}[/]")
-            if patience_counter >= patience:
-                console.print(f"[bold red]Eearly Stopped: max accuracy {best_accuracy:.3f}%[/]")
-                break
+        if patience is not None:
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                console.print(f"[yellow]patience: {patience_counter} / {patience}[/]")
+                if patience_counter >= patience:
+                    console.print(f"[bold red]Eearly Stopped: max accuracy {best_accuracy:.3f}%[/]")
+                    break

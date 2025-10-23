@@ -4,6 +4,7 @@ from typing import Protocol
 import numpy as np
 
 from common import F, util
+from constants import PRECISION
 
 
 class Module(Protocol):
@@ -78,13 +79,16 @@ class Affine(Module):
 
 
 # SoftmaxWithLoss
-class CrossEntropyLoss(Module):
+class SoftmaxWithLoss(Module):
     def __init__(self):
         self.loss = None  # 손실함수
         self.y = None  # softmax의 출력
         self.t = None  # 정답 레이블(원-핫 인코딩 형태)
 
     def forward(self, x: np.ndarray, t: np.ndarray) -> float:
+        x = x.reshape(-1, x.shape[-1])
+        t = t.reshape(-1, t.shape[-1])
+
         self.t = t
         self.y = F.softmax(x)
         self.loss = F.cross_entropy_error(self.y, self.t)
@@ -100,27 +104,6 @@ class CrossEntropyLoss(Module):
             dx[np.arange(batch_size), self.t] -= 1
             dx = dx / batch_size
 
-        return dx
-
-
-# TODO: 검증 필요
-class MSELoss(Module):
-    """Mean Squared Error (MSE) Loss Module - PyTorch 표준 구현과 일치"""
-
-    def __init__(self):
-        self.y = None  # Predicted output
-        self.t = None  # Target
-        self.loss = None
-
-    def forward(self, y: np.ndarray, t: np.ndarray) -> float:
-        self.y = y
-        self.t = t
-        self.loss = F.mean_squared_error_fixed(y, t)
-        return self.loss
-
-    def backward(self, dout=1):
-        batch_size = self.t.shape[0]
-        dx = 2 * (self.y - self.t) * dout / batch_size
         return dx
 
 
@@ -316,3 +299,114 @@ class MaxPooling(Module):
         dx = util.col2im(dcol, self.x.shape, self.pool_h, self.pool_w, self.stride, self.pad)
 
         return dx
+
+
+class BatchNorm2d(Module):
+    """
+    CNN용 배치 정규화 계층
+    각 채널별로 독립적으로 정규화를 수행
+    """
+
+    def __init__(self, gamma: np.ndarray, beta: np.ndarray, momentum: float = 0.9, running_mean=None, running_var=None):
+        """
+        Parameters:
+            gamma (np.ndarray): 스케일링 파라미터 (C,) 형태
+            beta (np.ndarray): 시프팅 파라미터 (C,) 형태
+            momentum (float): 이동 평균을 위한 모멘텀 값
+            running_mean (np.ndarray): 테스트 시 사용할 평균값
+            running_var (np.ndarray): 테스트 시 사용할 분산값
+        """
+        self.gamma = gamma
+        self.beta = beta
+        self.num_channels = gamma.shape[0]
+        self.momentum = momentum
+
+        # 테스트 시 사용할 통계값
+        self.running_mean = running_mean if running_mean is not None else np.zeros(self.num_channels).astype(PRECISION)
+        self.running_var = running_var if running_var is not None else np.ones(self.num_channels).astype(PRECISION)
+
+        # backward 시에 사용할 중간 데이터
+        self.batch_size = None
+        self.xc = None
+        self.std = None
+        self.dgamma = None
+        self.dbeta = None
+
+    def forward(self, x: np.ndarray, train_flg: bool = True) -> np.ndarray:
+        """
+        Parameters:
+            x (np.ndarray): 입력 데이터 (B, C, H, W) 형태
+            train_flg (bool): 학습 모드 여부
+
+        Returns:
+            np.ndarray: 정규화된 출력 (B, C, H, W) 형태
+        """
+        if x.ndim != 4:
+            raise ValueError("BatchNorm2d는 4차원 입력만 지원합니다")
+
+        B, C, H, W = x.shape
+
+        if C != self.num_channels:
+            raise ValueError(f"입력 채널 수({C})가 예상 채널 수({self.num_channels})와 다릅니다")
+
+        # 채널별로 정규화를 위해 (B, C, H*W) 형태로 변환
+        x_reshaped = x.reshape(B, C, H * W)
+
+        if train_flg:
+            # 각 채널별로 평균과 분산 계산
+            mu = x_reshaped.mean(axis=(0, 2))  # (C,) 형태
+            xc = x_reshaped - mu.reshape(1, C, 1)  # 브로드캐스팅
+            var = np.mean(xc**2, axis=(0, 2))  # (C,) 형태
+            std = np.sqrt(var + 1e-7)
+            xn = xc / std.reshape(1, C, 1)  # 브로드캐스팅
+
+            # 이동 평균 업데이트
+            self.running_mean = self.momentum * self.running_mean + (1 - self.momentum) * mu
+            self.running_var = self.momentum * self.running_var + (1 - self.momentum) * var
+
+            # backward를 위한 중간 데이터 저장
+            self.batch_size = B
+            self.xc = xc
+            self.xn = xn
+            self.std = std
+        else:
+            # 테스트 시에는 저장된 통계값 사용
+            xc = x_reshaped - self.running_mean.reshape(1, C, 1)
+            xn = xc / np.sqrt(self.running_var + 1e-7).reshape(1, C, 1)
+
+        # 스케일링과 시프팅
+        out = self.gamma.reshape(1, C, 1) * xn + self.beta.reshape(1, C, 1)
+
+        # 원래 형태로 복원
+        return out.reshape(B, C, H, W)
+
+    def backward(self, dout: np.ndarray) -> np.ndarray:
+        """
+        Parameters:
+            dout (np.ndarray): 출력에 대한 그래디언트 (B, C, H, W) 형태
+
+        Returns:
+            np.ndarray: 입력에 대한 그래디언트 (B, C, H, W) 형태
+        """
+        B, C, H, W = dout.shape
+
+        # 그래디언트를 (B, C, H*W) 형태로 변환
+        dout_reshaped = dout.reshape(B, C, H * W)
+
+        # gamma와 beta에 대한 그래디언트 계산
+        self.dgamma = np.sum(dout_reshaped * self.xn, axis=(0, 2))
+        self.dbeta = np.sum(dout_reshaped, axis=(0, 2))
+
+        # 입력에 대한 그래디언트 계산
+        dxn = dout_reshaped * self.gamma.reshape(1, C, 1)
+
+        # xn에 대한 그래디언트를 xc로 변환
+        dxc = dxn / self.std.reshape(1, C, 1)
+
+        # xc에 대한 그래디언트를 x로 변환
+        dmu = -np.sum(dxc, axis=(0, 2))
+        dvar = -np.sum(dxc * self.xc, axis=(0, 2)) / (2 * self.std)
+
+        dx = dxc + dmu.reshape(1, C, 1) / (B * H * W) + dvar.reshape(1, C, 1) * 2 * self.xc / (B * H * W)
+
+        return dx.reshape(B, C, H, W)

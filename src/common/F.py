@@ -43,10 +43,6 @@ def mean_squared_error(y: np.ndarray, t: np.ndarray) -> float:
     return 0.5 * np.sum((y - t) ** 2)
 
 
-def mean_squared_error_fixed(y: np.ndarray, t: np.ndarray) -> float:
-    return np.mean((y - t) ** 2)
-
-
 def cross_entropy_error(y: np.ndarray, t: np.ndarray) -> float:
     if y.ndim == 1:
         t = t.reshape(1, t.size)

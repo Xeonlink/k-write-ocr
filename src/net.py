@@ -3,6 +3,7 @@ from collections import OrderedDict
 import numpy as np
 
 from common import nn
+from constants import PRECISION
 
 
 class KOCRNet(nn.Module):
@@ -22,101 +23,103 @@ class KOCRNet(nn.Module):
         self.layers = OrderedDict[str, nn.Module]()
         # shape: (B, C, H, W)
 
-        # Conv0
+        # Block 0: Conv - Relu - Pool
         conv0_channels = 32
-        self.params["Conv0.W"] = weight_init_std * np.random.randn(conv0_channels, C, 3, 3)
-        self.params["Conv0.b"] = np.zeros(conv0_channels)
+        std = np.sqrt(2.0 / (1 * 3 * 3))
+        self.params["Conv0.W"] = std * np.random.randn(conv0_channels, C, 3, 3).astype(PRECISION)
+        self.params["Conv0.b"] = np.zeros(conv0_channels).astype(PRECISION)
         self.layers["Conv0"] = nn.Convolution(self.params["Conv0.W"], self.params["Conv0.b"], stride=1, pad=1)
-        # shape: (B, conv0_channels, H, W)
-
-        # Relu0
+        self.params["BatchNorm0.gamma"] = np.ones(conv0_channels).astype(PRECISION)
+        self.params["BatchNorm0.beta"] = np.zeros(conv0_channels).astype(PRECISION)
+        self.layers["BatchNorm0"] = nn.BatchNorm2d(self.params["BatchNorm0.gamma"], self.params["BatchNorm0.beta"])
         self.layers["Relu0"] = nn.Relu()
-        # shape: (B, conv0_channels, H, W)
-
-        # Pool0
         self.layers["Pool0"] = nn.MaxPooling(2, 2, stride=2)
-        # shape: (B, conv0_channels, H/2, W/2)
+        # shape after block 0: (B, conv0_channels, H/2, W/2)
 
-        # Conv1
+        # Block 1: Conv - Relu - Pool
         conv1_channels = 32
-        self.params["Conv1.W"] = weight_init_std * np.random.randn(conv1_channels, conv0_channels, 3, 3)
-        self.params["Conv1.b"] = np.zeros(conv1_channels)
+        std = np.sqrt(2.0 / (conv0_channels * 3 * 3))
+        self.params["Conv1.W"] = std * np.random.randn(conv1_channels, conv0_channels, 3, 3).astype(PRECISION)
+        self.params["Conv1.b"] = np.zeros(conv1_channels).astype(PRECISION)
         self.layers["Conv1"] = nn.Convolution(self.params["Conv1.W"], self.params["Conv1.b"], stride=1, pad=1)
-        # shape: (B, conv1_channels, H/2, W/2)
-
-        # Relu1
+        self.params["BatchNorm1.gamma"] = np.ones(conv1_channels).astype(PRECISION)
+        self.params["BatchNorm1.beta"] = np.zeros(conv1_channels).astype(PRECISION)
+        self.layers["BatchNorm1"] = nn.BatchNorm2d(self.params["BatchNorm1.gamma"], self.params["BatchNorm1.beta"])
         self.layers["Relu1"] = nn.Relu()
-        # shape: (B, conv1_channels, H/2, W/2)
-
-        # Pool1
         self.layers["Pool1"] = nn.MaxPooling(2, 2, stride=2)
-        # shape: (B, conv1_channels, H/4, W/4)
+        # shape after block 1: (B, conv1_channels, H/4, W/4)
 
-        # Conv2
+        # Block 2: Conv - Relu - Pool
         conv2_channels = 32
-        self.params["Conv2.W"] = weight_init_std * np.random.randn(conv2_channels, conv1_channels, 3, 3)
-        self.params["Conv2.b"] = np.zeros(conv2_channels)
+        std = np.sqrt(2.0 / (conv1_channels * 3 * 3))
+        self.params["Conv2.W"] = std * np.random.randn(conv2_channels, conv1_channels, 3, 3).astype(PRECISION)
+        self.params["Conv2.b"] = np.zeros(conv2_channels).astype(PRECISION)
         self.layers["Conv2"] = nn.Convolution(self.params["Conv2.W"], self.params["Conv2.b"], stride=1, pad=1)
-        # shape: (B, conv2_channels, H/4, W/4)
-
-        # Relu2
+        self.params["BatchNorm2.gamma"] = np.ones(conv2_channels).astype(PRECISION)
+        self.params["BatchNorm2.beta"] = np.zeros(conv2_channels).astype(PRECISION)
+        self.layers["BatchNorm2"] = nn.BatchNorm2d(self.params["BatchNorm2.gamma"], self.params["BatchNorm2.beta"])
         self.layers["Relu2"] = nn.Relu()
-        # shape: (B, conv2_channels, H/4, W/4)
-
-        # Pool2
         self.layers["Pool2"] = nn.MaxPooling(2, 2, stride=2)
-        # shape: (B, conv2_channels, H/8, W/8)
+        # shape after block 2: (B, conv2_channels, H/8, W/8)
 
-        # Conv3
+        # Block 3: Conv - Relu - Pool
         conv3_channels = 32
-        self.params["Conv3.W"] = weight_init_std * np.random.randn(conv3_channels, conv2_channels, 3, 3)
-        self.params["Conv3.b"] = np.zeros(conv3_channels)
+        std = np.sqrt(2.0 / (conv2_channels * 3 * 3))
+        self.params["Conv3.W"] = std * np.random.randn(conv3_channels, conv2_channels, 3, 3).astype(PRECISION)
+        self.params["Conv3.b"] = np.zeros(conv3_channels).astype(PRECISION)
         self.layers["Conv3"] = nn.Convolution(self.params["Conv3.W"], self.params["Conv3.b"], stride=1, pad=1)
-        # shape: (B, conv3_channels, H/8, W/8)
-
-        # Relu3
+        self.params["BatchNorm3.gamma"] = np.ones(conv3_channels).astype(PRECISION)
+        self.params["BatchNorm3.beta"] = np.zeros(conv3_channels).astype(PRECISION)
+        self.layers["BatchNorm3"] = nn.BatchNorm2d(self.params["BatchNorm3.gamma"], self.params["BatchNorm3.beta"])
         self.layers["Relu3"] = nn.Relu()
-        # shape: (B, conv3_channels, H/8, W/8)
-
-        # Pool3
         self.layers["Pool3"] = nn.MaxPooling(2, 2, stride=2)
-        # shape: (B, conv3_channels, H/16, W/16)
+        # shape after block 3: (B, conv3_channels, H/16, W/16)
 
-        # Conv4
+        # Block 4: Conv - Relu - Pool
         conv4_channels = 32
-        self.params["Conv4.W"] = weight_init_std * np.random.randn(conv4_channels, conv3_channels, 3, 3)
-        self.params["Conv4.b"] = np.zeros(conv4_channels)
+        std = np.sqrt(2.0 / (conv3_channels * 3 * 3))
+        self.params["Conv4.W"] = std * np.random.randn(conv4_channels, conv3_channels, 3, 3).astype(PRECISION)
+        self.params["Conv4.b"] = np.zeros(conv4_channels).astype(PRECISION)
         self.layers["Conv4"] = nn.Convolution(self.params["Conv4.W"], self.params["Conv4.b"], stride=1, pad=1)
-        # shape: (B, conv4_channels, H/16, W/16)
-
-        # Relu4
+        self.params["BatchNorm4.gamma"] = np.ones(conv4_channels).astype(PRECISION)
+        self.params["BatchNorm4.beta"] = np.zeros(conv4_channels).astype(PRECISION)
+        self.layers["BatchNorm4"] = nn.BatchNorm2d(self.params["BatchNorm4.gamma"], self.params["BatchNorm4.beta"])
         self.layers["Relu4"] = nn.Relu()
-        # shape: (B, conv4_channels, H/16, W/16)
-
-        # Pool4
         self.layers["Pool4"] = nn.MaxPooling(2, 2, stride=2)
-        # shape: (B, conv4_channels, H/32, W/32)
+        # shape after block 4: (B, conv4_channels, H/32, W/32)
 
-        # Conv5
+        # Block 5: Conv - Relu - Pool
         conv5_channels = 32
-        self.params["Conv5.W"] = weight_init_std * np.random.randn(conv5_channels, conv4_channels, 3, 3)
-        self.params["Conv5.b"] = np.zeros(conv5_channels)
+        std = np.sqrt(2.0 / (conv4_channels * 3 * 3))
+        self.params["Conv5.W"] = std * np.random.randn(conv5_channels, conv4_channels, 3, 3).astype(PRECISION)
+        self.params["Conv5.b"] = np.zeros(conv5_channels).astype(PRECISION)
         self.layers["Conv5"] = nn.Convolution(self.params["Conv5.W"], self.params["Conv5.b"], stride=1, pad=1)
-        # shape: (B, conv5_channels, H/32, W/32)
-
-        # Relu5
+        self.params["BatchNorm5.gamma"] = np.ones(conv5_channels).astype(PRECISION)
+        self.params["BatchNorm5.beta"] = np.zeros(conv5_channels).astype(PRECISION)
+        self.layers["BatchNorm5"] = nn.BatchNorm2d(self.params["BatchNorm5.gamma"], self.params["BatchNorm5.beta"])
         self.layers["Relu5"] = nn.Relu()
-        # shape: (B, conv5_channels, H/32, W/32)
-
-        # Pool5
         self.layers["Pool5"] = nn.MaxPooling(2, 2, stride=2)
-        # shape: (B, conv5_channels, H/64, W/64)
+        # shape after block 5: (B, conv5_channels, H/64, W/64)
+
+        # Block 6: Conv - Relu - Pool
+        conv6_channels = 32
+        std = np.sqrt(2.0 / (conv5_channels * 3 * 3))
+        self.params["Conv6.W"] = std * np.random.randn(conv6_channels, conv5_channels, 3, 3).astype(PRECISION)
+        self.params["Conv6.b"] = np.zeros(conv6_channels).astype(PRECISION)
+        self.layers["Conv6"] = nn.Convolution(self.params["Conv6.W"], self.params["Conv6.b"], stride=1, pad=1)
+        self.params["BatchNorm6.gamma"] = np.ones(conv6_channels).astype(PRECISION)
+        self.params["BatchNorm6.beta"] = np.zeros(conv6_channels).astype(PRECISION)
+        self.layers["BatchNorm6"] = nn.BatchNorm2d(self.params["BatchNorm6.gamma"], self.params["BatchNorm6.beta"])
+        self.layers["Relu6"] = nn.Relu()
+        self.layers["Pool6"] = nn.MaxPooling(2, 2, stride=2)
+        # shape after block 6: (B, conv6_channels, H/128, W/128)
 
         # Affine0
-        affine0_input_size = conv5_channels * int(H / 64) * int(W / 64)
+        affine0_input_size = conv6_channels * int(H / 128) * int(W / 128)
         affine0_hidden = 1000
-        self.params["Affine0.W"] = weight_init_std * np.random.randn(affine0_input_size, affine0_hidden)
-        self.params["Affine0.b"] = np.zeros(affine0_hidden)
+        std = np.sqrt(2.0 / (conv6_channels * 3 * 3))
+        self.params["Affine0.W"] = std * np.random.randn(affine0_input_size, affine0_hidden).astype(PRECISION)
+        self.params["Affine0.b"] = np.zeros(affine0_hidden).astype(PRECISION)
         self.layers["Affine0"] = nn.Affine(self.params["Affine0.W"], self.params["Affine0.b"])
         # shape: (B, affine0_hidden)
 
@@ -127,8 +130,9 @@ class KOCRNet(nn.Module):
         # Affine1
         affine1_input_size = affine0_hidden
         affine1_hidden = L * M * S
-        self.params["Affine1.W"] = weight_init_std * np.random.randn(affine1_input_size, affine1_hidden)
-        self.params["Affine1.b"] = np.zeros(affine1_hidden)
+        std = np.sqrt(2.0 / affine1_hidden)
+        self.params["Affine1.W"] = std * np.random.randn(affine1_input_size, affine1_hidden).astype(PRECISION)
+        self.params["Affine1.b"] = np.zeros(affine1_hidden).astype(PRECISION)
         self.layers["Affine1"] = nn.Affine(self.params["Affine1.W"], self.params["Affine1.b"])
         # shape: (B, affine1_hidden)
 
@@ -138,14 +142,16 @@ class KOCRNet(nn.Module):
         for name, layer in self.layers.items():
             if name.startswith("Dropout"):
                 x = layer.forward(x, is_train)
+            elif name.startswith("BatchNorm"):
+                x = layer.forward(x, is_train)
             else:
                 x = layer.forward(x)
 
         L, M, S = self.output_shape
-        x = x.reshape(x.shape[0], L, M, S)
+        x = x.reshape(self.batch_size, L, M, S)
         return x
 
-    def backward(self, dout: np.ndarray) -> np.ndarray:
+    def backward(self, dout: np.ndarray) -> None:
         L, M, S = self.output_shape
         dout = dout.reshape(self.batch_size, L * M * S)
 
@@ -156,18 +162,35 @@ class KOCRNet(nn.Module):
         grads = {}
         grads["Conv0.W"] = self.layers["Conv0"].dW
         grads["Conv0.b"] = self.layers["Conv0"].db
+        grads["BatchNorm0.gamma"] = self.layers["BatchNorm0"].dgamma
+        grads["BatchNorm0.beta"] = self.layers["BatchNorm0"].dbeta
         grads["Conv1.W"] = self.layers["Conv1"].dW
         grads["Conv1.b"] = self.layers["Conv1"].db
+        grads["BatchNorm1.gamma"] = self.layers["BatchNorm1"].dgamma
+        grads["BatchNorm1.beta"] = self.layers["BatchNorm1"].dbeta
         grads["Conv2.W"] = self.layers["Conv2"].dW
         grads["Conv2.b"] = self.layers["Conv2"].db
+        grads["BatchNorm2.gamma"] = self.layers["BatchNorm2"].dgamma
+        grads["BatchNorm2.beta"] = self.layers["BatchNorm2"].dbeta
         grads["Conv3.W"] = self.layers["Conv3"].dW
         grads["Conv3.b"] = self.layers["Conv3"].db
+        grads["BatchNorm3.gamma"] = self.layers["BatchNorm3"].dgamma
+        grads["BatchNorm3.beta"] = self.layers["BatchNorm3"].dbeta
         grads["Conv4.W"] = self.layers["Conv4"].dW
         grads["Conv4.b"] = self.layers["Conv4"].db
+        grads["BatchNorm4.gamma"] = self.layers["BatchNorm4"].dgamma
+        grads["BatchNorm4.beta"] = self.layers["BatchNorm4"].dbeta
         grads["Conv5.W"] = self.layers["Conv5"].dW
         grads["Conv5.b"] = self.layers["Conv5"].db
+        grads["BatchNorm5.gamma"] = self.layers["BatchNorm5"].dgamma
+        grads["BatchNorm5.beta"] = self.layers["BatchNorm5"].dbeta
+        grads["Conv6.W"] = self.layers["Conv6"].dW
+        grads["Conv6.b"] = self.layers["Conv6"].db
+        grads["BatchNorm6.gamma"] = self.layers["BatchNorm6"].dgamma
+        grads["BatchNorm6.beta"] = self.layers["BatchNorm6"].dbeta
         grads["Affine0.W"] = self.layers["Affine0"].dW
         grads["Affine0.b"] = self.layers["Affine0"].db
         grads["Affine1.W"] = self.layers["Affine1"].dW
         grads["Affine1.b"] = self.layers["Affine1"].db
+
         return grads
