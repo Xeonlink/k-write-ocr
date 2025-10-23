@@ -20,14 +20,16 @@ class DataLoader[T](abc.Sequence[T]):
 
 
 class LanguageDataLoader(DataLoader[tuple[np.ndarray, np.ndarray]]):
-    def __init__(self, metafile_path: Path, codec: Codec, batch_size: int = 100):
+    def __init__(self, metafile_path: Path, codec: Codec, batch_size: int = 100, max_data_count: int = None):
         self.batch_size = batch_size
         self.codec = codec
 
         with open(metafile_path, "r") as f:
             data_list = list(csv.reader(f))
-
         self.data_list = data_list
+
+        if max_data_count is not None:
+            self.data_list = self.data_list[:max_data_count]
 
     def load_image(self, image_path: Path) -> np.ndarray:
         """주의: 이미지가 gray scale인 경우에만 작동합니다."""

@@ -56,8 +56,8 @@ def train(
 
     # 학습 시작
     codec = KoreanCodec(max_length=MAX_LABEL_LENGTH)
-    train_loader = LanguageDataLoader(DATA_DIR / "train_labels.csv", codec, batch_size)
-    test_loader = LanguageDataLoader(DATA_DIR / "test_labels.csv", codec, batch_size)
+    train_loader = LanguageDataLoader(DATA_DIR / "train_labels.csv", codec, batch_size, max_data_count=batch_size * 3)
+    test_loader = LanguageDataLoader(DATA_DIR / "test_labels.csv", codec, batch_size, max_data_count=batch_size)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(lr=0.01, beta1=0.9, beta2=0.999)
