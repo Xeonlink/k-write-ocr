@@ -21,6 +21,8 @@ class KoreanCodec(Codec):
     def encode(self, label: str) -> np.ndarray:
         arr = np.zeros((self.max_length, len(한글문자), 가능성길이), dtype=np.uint8)
 
+        label = (label + 공백문자 * self.max_length)[: self.max_length]
+
         for i, letter in enumerate(label):
             jamo = j2hcj(h2j(letter))
             for j in range(len(한글문자)):

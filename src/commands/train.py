@@ -24,6 +24,7 @@ def train(
     yes: Annotated[bool, typer.Option(help="확인없이 진행")] = False,
     max_epoch: Annotated[int, typer.Option(help="학습 에폭 수")] = 10,
     batch_size: Annotated[int, typer.Option(help="배치 크기")] = 32,
+    max_iter: Annotated[int, typer.Option(help="최대 반복 횟수(디버깅용)")] = None,
     # verbose: Annotated[bool, typer.Option(help="상세 로깅 여부")] = False,
 ) -> None:
     # 작업 설명 출력하기
@@ -37,6 +38,7 @@ def train(
                 f"- 아래의 파라미터로 학습을 시작합니다.",
                 f"- max_epoch: [yellow]{max_epoch}[/]",
                 f"- batch_size: [yellow]{batch_size}[/]",
+                f"- max_iter: [yellow]{'미지정' if max_iter is None else max_iter}[/]",
             ]
         )
         panel = Panel(
@@ -64,11 +66,11 @@ def train(
         output_shape=(batch_size, 10, 3, 28),
     )
 
+    iter_counter = 0
     for epoch in range(max_epoch):
 
         train_losses = []
-        iter = 0
-        for iter, (x, t) in enumerate(train_loader):
+        for i, (x, t) in enumerate(train_loader):
             # 0~1 범위로 정규화
             x = x.astype(np.float32) / UINT8_MAX
             t = t.astype(np.float32)
@@ -84,7 +86,13 @@ def train(
             grads = model.gradient()  # gradient 값 추출
             optimizer.update(model.params, grads)  # 파라미터 update
             train_losses.append(loss)
-            console.print(f"Epoch: {epoch+1}, Iter: {iter+1}, Loss: {loss}")
+            iter_counter += 1
+            console.print(f"Epoch: {epoch+1}, Iter: {i+1}, Loss: {loss}")
+
+            # 최대 반복 횟수 도달 시 종료 (Debug용)
+            if max_iter is not None and iter_counter >= max_iter:
+                console.print(f"[red]Max iteration reached[/]")
+                return
 
         total_count = len(test_loader)
         correct_count = 0
