@@ -8,8 +8,17 @@ from rich.table import Table, box
 
 from codec import KoreanCodec
 from common import nn
-from common.optimizer import Adam, Momentum
-from constants import DATA_DIR, MAX_LABEL_LENGTH, PRECISION, UINT8_MAX, console
+from common.optimizer import Adam
+from constants import (
+    DATA_DIR,
+    MAX_LABEL_LENGTH,
+    PRECISION,
+    TEST_DATA_LIMIT,
+    TEST_PER_ITER,
+    TRAIN_DATA_LIMIT,
+    UINT8_MAX,
+    console,
+)
 from data_loader import LanguageDataLoader
 from net import KOCRNet
 
@@ -67,18 +76,17 @@ def train(
         DATA_DIR / "train_labels.csv",
         codec,
         batch_size,
-        max_data_count=batch_size * 10 if debug else None,
+        max_data_count=batch_size * TRAIN_DATA_LIMIT if debug and TRAIN_DATA_LIMIT >= 0 else None,
     )
     test_loader = LanguageDataLoader(
         DATA_DIR / "test_labels.csv",
         codec,
         batch_size,
-        max_data_count=batch_size * 1 if debug else None,
+        max_data_count=batch_size * TEST_DATA_LIMIT if debug and TEST_DATA_LIMIT >= 0 else None,
     )
 
     criterion = nn.SoftmaxWithLoss()
     optimizer = Adam(lr=0.001, beta1=0.9, beta2=0.999)
-    # optimizer = Momentum(lr=0.01, momentum=0.9)
     model = KOCRNet(
         input_shape=(1, 260, 660),
         output_shape=(MAX_LABEL_LENGTH, 3, 28),
@@ -109,6 +117,39 @@ def train(
             train_losses.append(loss)
             console.print(f"Epoch: {epoch+1}, Iter: {i+1}, Loss: {loss}")
 
+            if debug and (epoch + (i + 1)) % TEST_PER_ITER == 0:
+                total_count = len(test_loader)
+                correct_count = 0
+                preds = []
+                ts = []
+                for x, t in track(test_loader, description="Testing..."):
+                    # 0~1 범위로 정규화
+                    x = np.clip(x.astype(PRECISION) / UINT8_MAX, 0, 1)
+                    t = np.clip(t.astype(PRECISION), 0, 1)
+
+                    # 모델 평가
+                    B, L, M, S = t.shape
+                    pred = model.forward(x, is_train=False)
+                    decoded_pred = [codec.decode2자소나열(pred_) for pred_ in pred]
+                    decoded_t = [codec.decode2자소나열(t_) for t_ in t]
+                    correct_count += sum(1 for pred, true in zip(decoded_pred, decoded_t) if pred == true)
+                    preds.append(pred)
+                    ts.append(t)
+
+                if debug:
+                    table = Table(header_style="green", box=box.ROUNDED)
+                    table.add_column("예측 자소나열")
+                    table.add_column("예측 단어")
+                    table.add_column("정답 단어")
+                    for pred, t in zip(preds, ts):
+                        for pred_, t_ in zip(pred, t):
+                            table.add_row(codec.decode2자소나열(pred_), codec.decode2단어(pred_), codec.decode2단어(t_))
+
+                    console.print(table)
+
+                accuracy = correct_count / total_count * 100
+                console.print(f"Accuracy: {accuracy:03f}")
+
         total_count = len(test_loader)
         correct_count = 0
         preds = []
@@ -134,7 +175,7 @@ def train(
             table.add_column("정답 단어")
             for pred, t in zip(preds, ts):
                 for pred_, t_ in zip(pred, t):
-                    table.add_row(pred_, codec.decode2단어(pred_), codec.decode2단어(t_))
+                    table.add_row(codec.decode2자소나열(pred_), codec.decode2단어(pred_), codec.decode2단어(t_))
 
             console.print(table)
 

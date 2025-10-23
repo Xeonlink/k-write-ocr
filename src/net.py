@@ -124,7 +124,7 @@ class KOCRNet(nn.Module):
         # shape: (B, affine0_hidden)
 
         # Dropout0
-        self.layers["Dropout0"] = nn.Dropout(dropout_ratio=0.5)
+        self.layers["Dropout0"] = nn.Dropout(dropout_ratio=0.8)
         # shape: (B, affine0_hidden)
 
         # Affine1
