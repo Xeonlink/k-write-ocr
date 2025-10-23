@@ -41,6 +41,9 @@ class LanguageDataLoader(DataLoader[tuple[np.ndarray, np.ndarray]]):
         return math.ceil(len(self.data_list) / self.batch_size)
 
     def __getitem__(self, index: int):
+        if len(self) <= index:
+            raise IndexError(f"Index {index} is out of range")
+
         batch = self.data_list[index * self.batch_size : (index + 1) * self.batch_size]
 
         # image ndarray 생성

@@ -37,5 +37,6 @@ class KoreanCodec(Codec):
         for i in range(self.max_length):
             chars = [한글문자[j][np.argmax(encoded[i, j])] for j in range(len(한글문자))]
             chars = [c for c in chars if c != 공백문자]
-            letters.append(j2h(*chars))
+            if chars:
+                letters.append(j2h(*chars))
         return "".join(letters)

@@ -9,14 +9,14 @@ class KOCRNet(nn.Module):
 
     def __init__(
         self,
-        input_shape: tuple = (100, 1, 260, 660),
-        output_shape: tuple = (100, 10, 3, 28),
+        input_shape: tuple = (1, 260, 660),  # shape without batch size
+        output_shape: tuple = (10, 3, 28),  # shape without batch size
         weight_init_std: float = 0.01,
     ):
         super().__init__()
 
-        B, C, H, W = input_shape
-        B, L, M, S = self.output_shape = output_shape
+        C, H, W = input_shape
+        L, M, S = self.output_shape = output_shape
 
         self.params = {}
         self.layers = OrderedDict[str, nn.Module]()
@@ -133,16 +133,18 @@ class KOCRNet(nn.Module):
         # shape: (B, affine1_hidden)
 
     def forward(self, x: np.ndarray) -> np.ndarray:
+        self.batch_size = x.shape[0]  # batch size
+
         for layer in self.layers.values():
             x = layer.forward(x)
 
-        B, L, M, S = self.output_shape
-        x = x.reshape(B, L, M, S)
+        L, M, S = self.output_shape
+        x = x.reshape(x.shape[0], L, M, S)
         return x
 
     def backward(self, dout: np.ndarray) -> np.ndarray:
-        B, L, M, S = self.output_shape
-        dout = dout.reshape(B, L * M * S)
+        L, M, S = self.output_shape
+        dout = dout.reshape(self.batch_size, L * M * S)
 
         for layer in reversed(self.layers.values()):
             dout = layer.backward(dout)

@@ -22,9 +22,10 @@ app = typer.Typer(
 @app.command("train", help="학습을 시작합니다.")
 def train(
     yes: Annotated[bool, typer.Option(help="확인없이 진행")] = False,
-    max_epoch: Annotated[int, typer.Option(help="학습 에폭 수")] = 10,
+    max_epoch: Annotated[int, typer.Option(help="학습 에폭 수")] = 30,
     batch_size: Annotated[int, typer.Option(help="배치 크기")] = 32,
-    max_iter: Annotated[int, typer.Option(help="최대 반복 횟수(디버깅용)")] = None,
+    patience: Annotated[int, typer.Option(help="Early stopping 인내 횟수")] = 5,
+    debug: Annotated[bool, typer.Option(help="디버깅 모드")] = False,
     # verbose: Annotated[bool, typer.Option(help="상세 로깅 여부")] = False,
 ) -> None:
     # 작업 설명 출력하기
@@ -38,7 +39,7 @@ def train(
                 f"- 아래의 파라미터로 학습을 시작합니다.",
                 f"- max_epoch: [yellow]{max_epoch}[/]",
                 f"- batch_size: [yellow]{batch_size}[/]",
-                f"- max_iter: [yellow]{'미지정' if max_iter is None else max_iter}[/]",
+                f"- debug: [yellow]{debug}[/]",
             ]
         )
         panel = Panel(
@@ -56,17 +57,30 @@ def train(
 
     # 학습 시작
     codec = KoreanCodec(max_length=MAX_LABEL_LENGTH)
-    train_loader = LanguageDataLoader(DATA_DIR / "train_labels.csv", codec, batch_size, max_data_count=batch_size * 3)
-    test_loader = LanguageDataLoader(DATA_DIR / "test_labels.csv", codec, batch_size, max_data_count=batch_size)
+    train_loader = LanguageDataLoader(
+        DATA_DIR / "train_labels.csv",
+        codec,
+        batch_size,
+        max_data_count=batch_size * 3 if debug else None,
+    )
+    test_loader = LanguageDataLoader(
+        DATA_DIR / "test_labels.csv",
+        codec,
+        batch_size,
+        max_data_count=batch_size if debug else None,
+    )
 
     criterion = nn.CrossEntropyLoss()
     optimizer = Adam(lr=0.01, beta1=0.9, beta2=0.999)
     model = KOCRNet(
-        input_shape=(batch_size, 1, 260, 660),
-        output_shape=(batch_size, 10, 3, 28),
+        input_shape=(1, 260, 660),
+        output_shape=(10, 3, 28),
     )
 
-    iter_counter = 0
+    # Early stopping 변수
+    best_accuracy = 0.0
+    patience_counter = 0
+
     for epoch in range(max_epoch):
 
         train_losses = []
@@ -86,13 +100,7 @@ def train(
             grads = model.gradient()  # gradient 값 추출
             optimizer.update(model.params, grads)  # 파라미터 update
             train_losses.append(loss)
-            iter_counter += 1
             console.print(f"Epoch: {epoch+1}, Iter: {i+1}, Loss: {loss}")
-
-            # 최대 반복 횟수 도달 시 종료 (Debug용)
-            if max_iter is not None and iter_counter >= max_iter:
-                console.print(f"[red]Max iteration reached[/]")
-                return
 
         total_count = len(test_loader)
         correct_count = 0
@@ -103,8 +111,20 @@ def train(
 
             # 모델 평가
             pred = model.forward(x)
-            decoded_pred = [codec.decode(pred[i]) for i in pred]
-            decoded_t = [codec.decode(t[i]) for i in t]
+            decoded_pred = [codec.decode(pred_) for pred_ in pred]
+            decoded_t = [codec.decode(t_) for t_ in t]
             correct_count += sum(1 for pred, true in zip(decoded_pred, decoded_t) if pred == true)
 
-        console.print(f"Accuracy: {correct_count / total_count * 100:03f}")
+        accuracy = correct_count / total_count * 100
+        console.print(f"Accuracy: {accuracy:03f}")
+
+        # Early Stopping 확인
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            console.print(f"[yellow]patience: {patience_counter} / {patience}[/]")
+            if patience_counter >= patience:
+                console.print(f"[bold red]Eearly Stopped: max accuracy {best_accuracy:.3f}%[/]")
+                break
