@@ -77,20 +77,21 @@ class Affine(Module):
         return dx
 
 
-class SoftmaxWithLoss(Module):
+# SoftmaxWithLoss
+class CrossEntropyLoss(Module):
     def __init__(self):
         self.loss = None  # 손실함수
         self.y = None  # softmax의 출력
         self.t = None  # 정답 레이블(원-핫 인코딩 형태)
 
-    def forward(self, x, t):
+    def forward(self, x: np.ndarray, t: np.ndarray) -> float:
         self.t = t
         self.y = F.softmax(x)
         self.loss = F.cross_entropy_error(self.y, self.t)
 
         return self.loss
 
-    def backward(self, dout=1):
+    def backward(self, dout: float = 1) -> np.ndarray:
         batch_size = self.t.shape[0]
         if self.t.size == self.y.size:  # 정답 레이블이 원-핫 인코딩 형태일 때
             dx = (self.y - self.t) / batch_size
@@ -104,9 +105,7 @@ class SoftmaxWithLoss(Module):
 
 # TODO: 검증 필요
 class MSELoss(Module):
-    """
-    Mean Squared Error (MSE) Loss Module
-    """
+    """Mean Squared Error (MSE) Loss Module"""
 
     def __init__(self):
         self.y = None  # Predicted output
@@ -231,7 +230,7 @@ class BatchNormalization(Module):
 
 
 class Convolution(Module):
-    def __init__(self, W, b, stride=1, pad=0):
+    def __init__(self, W: np.ndarray, b: np.ndarray, stride: int = 1, pad: int = 0):
         self.W = W
         self.b = b
         self.stride = stride
@@ -246,7 +245,7 @@ class Convolution(Module):
         self.dW = None
         self.db = None
 
-    def forward(self, x):
+    def forward(self, x: np.ndarray) -> np.ndarray:
         FN, C, FH, FW = self.W.shape
         N, C, H, W = x.shape
         out_h = 1 + int((H + 2 * self.pad - FH) / self.stride)
@@ -264,7 +263,7 @@ class Convolution(Module):
 
         return out
 
-    def backward(self, dout):
+    def backward(self, dout: np.ndarray) -> np.ndarray:
         FN, C, FH, FW = self.W.shape
         dout = dout.transpose(0, 2, 3, 1).reshape(-1, FN)
 
@@ -278,7 +277,7 @@ class Convolution(Module):
         return dx
 
 
-class Pooling(Module):
+class MaxPooling(Module):
     def __init__(self, pool_h, pool_w, stride=1, pad=0):
         self.pool_h = pool_h
         self.pool_w = pool_w

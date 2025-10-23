@@ -4,7 +4,6 @@ import numpy as np
 import typer
 from rich.panel import Panel
 from rich.progress import track
-from rich.table import Table, box
 
 from codec import KoreanCodec
 from common import nn
@@ -25,7 +24,7 @@ def train(
     yes: Annotated[bool, typer.Option(help="확인없이 진행")] = False,
     max_epoch: Annotated[int, typer.Option(help="학습 에폭 수")] = 10,
     batch_size: Annotated[int, typer.Option(help="배치 크기")] = 32,
-    verbose: Annotated[bool, typer.Option(help="상세 로깅 여부")] = False,
+    # verbose: Annotated[bool, typer.Option(help="상세 로깅 여부")] = False,
 ) -> None:
     # 작업 설명 출력하기
     if not yes:
@@ -33,6 +32,11 @@ def train(
             [
                 f"📂 학습 과정 폴더의 경로",
                 f"[blue]./{DATA_DIR}[/]",
+                f"",
+                f"[green]Jobs[/]",
+                f"- 아래의 파라미터로 학습을 시작합니다.",
+                f"- max_epoch: [yellow]{max_epoch}[/]",
+                f"- batch_size: [yellow]{batch_size}[/]",
             ]
         )
         panel = Panel(
@@ -53,9 +57,12 @@ def train(
     train_loader = LanguageDataLoader(DATA_DIR / "train_labels.csv", codec, batch_size)
     test_loader = LanguageDataLoader(DATA_DIR / "test_labels.csv", codec, batch_size)
 
-    loss_function = nn.MSELoss()
-    optimizer = Adam(lr=0.001, beta1=0.9, beta2=0.999)
-    model = KOCRNet()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = Adam(lr=0.01, beta1=0.9, beta2=0.999)
+    model = KOCRNet(
+        input_shape=(batch_size, 1, 260, 660),
+        output_shape=(batch_size, 10, 3, 28),
+    )
 
     for epoch in range(max_epoch):
 
@@ -64,12 +71,21 @@ def train(
         for iter, (x, t) in enumerate(train_loader):
             # 0~1 범위로 정규화
             x = x.astype(np.float32) / UINT8_MAX
-            t = t.astype(np.float32) / UINT8_MAX
+            t = t.astype(np.float32)
+
+            print(t.shape)
+            print(t[0].shape)
+            print(t[0][0].shape)
+            print(t[0][0][1])
+            print("===============")
 
             # 모델 학습
+            B, L, M, S = t.shape  # B: batch size, L: max label length, M: letter member, S: character set size
             pred = model.forward(x)  # foward 값 계산 (gradient 계산 때 사용)
-            loss = loss_function.forward(pred, t)  # 손실 계산
-            dout = loss_function.backward()  # 손실 함수 미분
+            pred = pred.reshape(B * L * M, S)
+            t = t.reshape(B * L * M, S)
+            loss = criterion.forward(pred, t)  # 손실 계산
+            dout = criterion.backward()  # gradient 계산
             model.backward(dout)  # gradient 계산
             grads = model.gradient()  # gradient 값 추출
             optimizer.update(model.params, grads)  # 파라미터 update
@@ -81,7 +97,7 @@ def train(
         for x, t in track(test_loader, description="Testing..."):
             # 0~1 범위로 정규화
             x = x.astype(np.float32) / UINT8_MAX
-            t = t.astype(np.float32) / UINT8_MAX
+            t = t.astype(np.float32)
 
             # 모델 평가
             pred = model.forward(x)
