@@ -68,7 +68,7 @@ def train(
         DATA_DIR / "test_labels.csv",
         codec,
         batch_size,
-        max_data_count=batch_size if debug else None,
+        max_data_count=batch_size * 1 if debug else None,
     )
 
     criterion = nn.CrossEntropyLoss()
@@ -105,6 +105,8 @@ def train(
 
         total_count = len(test_loader)
         correct_count = 0
+        saved_decoded_pred = []
+        saved_decoded_t = []
         for x, t in track(test_loader, description="Testing..."):
             # 0~1 범위로 정규화
             x = x.astype(np.float32) / UINT8_MAX
@@ -115,15 +117,17 @@ def train(
             decoded_pred = [codec.decode(pred_) for pred_ in pred]
             decoded_t = [codec.decode(t_) for t_ in t]
             correct_count += sum(1 for pred, true in zip(decoded_pred, decoded_t) if pred == true)
+            saved_decoded_pred.extend(decoded_pred)
+            saved_decoded_t.extend(decoded_t)
 
-            if debug:
-                table = Table(header_style="green", box=box.ROUNDED)
-                table.add_column("예측 -> 정답")
-                for pred, true in zip(decoded_pred, decoded_t):
-                    table.add_row(f"{pred} -> {true}")
+        if debug:
+            table = Table(header_style="green", box=box.ROUNDED)
+            table.add_column("예측 -> 정답")
+            for pred, true in zip(decoded_pred, decoded_t):
+                table.add_row(f"{pred} -> {true}")
 
-                console.print(f"")
-                console.print(table)
+            console.print(f"")
+            console.print(table)
 
         accuracy = correct_count / total_count * 100
         console.print(f"Accuracy: {accuracy:03f}")
