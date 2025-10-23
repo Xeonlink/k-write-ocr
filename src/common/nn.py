@@ -105,22 +105,22 @@ class CrossEntropyLoss(Module):
 
 # TODO: 검증 필요
 class MSELoss(Module):
-    """Mean Squared Error (MSE) Loss Module"""
+    """Mean Squared Error (MSE) Loss Module - PyTorch 표준 구현과 일치"""
 
     def __init__(self):
         self.y = None  # Predicted output
         self.t = None  # Target
         self.loss = None
 
-    def forward(self, y, t):
+    def forward(self, y: np.ndarray, t: np.ndarray) -> float:
         self.y = y
         self.t = t
-        self.loss = F.mean_squared_error(y, t)
+        self.loss = F.mean_squared_error_fixed(y, t)
         return self.loss
 
     def backward(self, dout=1):
         batch_size = self.t.shape[0]
-        dx = (self.y - self.t) * dout / batch_size
+        dx = 2 * (self.y - self.t) * dout / batch_size
         return dx
 
 

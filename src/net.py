@@ -134,11 +134,9 @@ class KOCRNet(nn.Module):
 
     def forward(self, x: np.ndarray) -> np.ndarray:
         for layer in self.layers.values():
-            print(x.shape)
             x = layer.forward(x)
 
         B, L, M, S = self.output_shape
-        print(x.shape)
         x = x.reshape(B, L, M, S)
         return x
 

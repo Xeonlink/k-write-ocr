@@ -73,12 +73,6 @@ def train(
             x = x.astype(np.float32) / UINT8_MAX
             t = t.astype(np.float32)
 
-            print(t.shape)
-            print(t[0].shape)
-            print(t[0][0].shape)
-            print(t[0][0][1])
-            print("===============")
-
             # 모델 학습
             B, L, M, S = t.shape  # B: batch size, L: max label length, M: letter member, S: character set size
             pred = model.forward(x)  # foward 값 계산 (gradient 계산 때 사용)
