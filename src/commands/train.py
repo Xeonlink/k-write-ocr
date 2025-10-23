@@ -4,6 +4,7 @@ import numpy as np
 import typer
 from rich.panel import Panel
 from rich.progress import track
+from rich.table import Table, box
 
 from codec import KoreanCodec
 from common import nn
@@ -114,6 +115,15 @@ def train(
             decoded_pred = [codec.decode(pred_) for pred_ in pred]
             decoded_t = [codec.decode(t_) for t_ in t]
             correct_count += sum(1 for pred, true in zip(decoded_pred, decoded_t) if pred == true)
+
+            if debug:
+                table = Table(header_style="green", box=box.ROUNDED)
+                table.add_column("예측 -> 정답")
+                for pred, true in zip(decoded_pred, decoded_t):
+                    table.add_row(f"{pred} -> {true}")
+
+                console.print(f"")
+                console.print(table)
 
         accuracy = correct_count / total_count * 100
         console.print(f"Accuracy: {accuracy:03f}")
