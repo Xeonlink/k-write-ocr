@@ -132,11 +132,14 @@ class KOCRNet(nn.Module):
         self.layers["Affine1"] = nn.Affine(self.params["Affine1.W"], self.params["Affine1.b"])
         # shape: (B, affine1_hidden)
 
-    def forward(self, x: np.ndarray) -> np.ndarray:
+    def forward(self, x: np.ndarray, is_train: bool = True) -> np.ndarray:
         self.batch_size = x.shape[0]  # batch size
 
-        for layer in self.layers.values():
-            x = layer.forward(x)
+        for name, layer in self.layers.items():
+            if name.startswith("Dropout"):
+                x = layer.forward(x, is_train)
+            else:
+                x = layer.forward(x)
 
         L, M, S = self.output_shape
         x = x.reshape(x.shape[0], L, M, S)

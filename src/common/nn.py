@@ -133,8 +133,8 @@ class Dropout(Module):
         self.dropout_ratio = dropout_ratio
         self.mask = None
 
-    def forward(self, x, train_flg=True):
-        if train_flg:
+    def forward(self, x, is_train=True):
+        if is_train:
             self.mask = np.random.rand(*x.shape) > self.dropout_ratio
             return x * self.mask
         else:

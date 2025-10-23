@@ -78,7 +78,7 @@ def train(
     )
 
     # Early stopping 변수
-    best_accuracy = 0.0
+    best_accuracy = -1
     patience_counter = 0
 
     for epoch in range(max_epoch):
@@ -110,7 +110,7 @@ def train(
             t = t.astype(np.float32)
 
             # 모델 평가
-            pred = model.forward(x)
+            pred = model.forward(x, is_train=False)
             decoded_pred = [codec.decode(pred_) for pred_ in pred]
             decoded_t = [codec.decode(t_) for t_ in t]
             correct_count += sum(1 for pred, true in zip(decoded_pred, decoded_t) if pred == true)
