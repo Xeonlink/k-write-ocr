@@ -33,6 +33,8 @@ uv run main.py
 uv run main.py --help
 ```
 
+---
+
 ### 🗂️ 데이터 폴더 변환
 
 ```bash
@@ -80,6 +82,8 @@ uv run main.py data info --help # arg 및 옵션 보기
 **`info` - 데이터셋 통계 정보**
 
 <img src="docs/data-info.png" style="max-width: 100%; width: 600px; height: auto;" />
+
+---
 
 ### 🏭 데이터 전처리
 
@@ -136,6 +140,8 @@ python main.py preprocess drop 100 --yes  # 확인 없이 진행
 
 <img src="docs/preprocess-drop.png" style="max-width: 100%; width: 600px; height: auto;" />
 
+---
+
 ### 🧠 모델 학습
 
 ```bash
@@ -157,3 +163,7 @@ python main.py train train --yes  # 확인 없이 진행
 - `--patience`: Early stopping을 위한 인내 횟수
 - `--debug`: 디버깅 모드 활성화 (상세한 로그 출력)
 - `--yes`: 확인 없이 바로 학습 시작
+
+## 기타 문서
+
+- [기술적 결정과 비화](docs/story.md)
