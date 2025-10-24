@@ -60,23 +60,23 @@ uv run main.py data info --help # arg 및 옵션 보기
 
 **`unzip` - 데이터셋 압축 해제**
 
-![Data Unzip](docs/data-unzip.png)
+<img src="docs/data-unzip.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`compact` - 폴더 구조 정리**
 
-![Data Compact](docs/data-compact.png)
+<img src="docs/data-compact.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`sync` - 데이터와 라벨 동기화**
 
-![Data Sync](docs/data-sync.png)
+<img src="docs/data-sync.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`drop` - 데이터 수 줄이기**
 
-![Data Drop](docs/data-drop.png)
+<img src="docs/data-drop.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`info` - 데이터셋 통계 정보**
 
-![Data Info](docs/data-info.png)
+<img src="docs/data-info.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 ### 🏭 데이터 전처리
 
@@ -111,27 +111,27 @@ python main.py preprocess drop 100 --yes  # 확인 없이 진행
 
 **`crop` - 소스 이미지에서 학습용 이미지 추출**
 
-![Preprocess Crop](docs/preprocess-crop.png)
+<img src="docs/preprocess-crop.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`gray` - 이미지 흑백 변환**
 
-![Preprocess Gray](docs/preprocess-gray.png)
+<img src="docs/preprocess-gray.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`resize` - 이미지 크기 조정**
 
-![Preprocess Resize](docs/preprocess-resize.png)
+<img src="docs/preprocess-resize.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`filter:korean` - 한글 데이터 필터링**
 
-![Preprocess Filter Korean](docs/preprocess-filter_korean.png)
+<img src="docs/preprocess-filter_korean.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`split` - train/test 데이터셋 분리**
 
-![Preprocess Split](docs/preprocess-split.png)
+<img src="docs/preprocess-split.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 **`drop` - 데이터 수 줄이기**
 
-![Preprocess Drop](docs/preprocess-drop.png)
+<img src="docs/preprocess-drop.png" style="max-width: 100%; width: 600px; height: auto;" />
 
 ### 🧠 모델 학습
 
