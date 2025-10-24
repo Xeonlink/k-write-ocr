@@ -23,7 +23,7 @@ class KOCRNet(nn.Module):
         self.layers = OrderedDict[str, nn.Module]()
         # shape: (B, C, H, W)
 
-        # Block 0: Conv - Relu - Pool
+        # Block 0: Conv - BatchNorm2d - Relu - Pool
         conv0_channels = 64
         std = np.sqrt(2.0 / (1 * 3 * 3))
         self.params["Conv0.W"] = std * np.random.randn(conv0_channels, C, 3, 3).astype(PRECISION)
@@ -36,7 +36,7 @@ class KOCRNet(nn.Module):
         self.layers["Pool0"] = nn.MaxPooling(2, 2, stride=2)
         # shape after block 0: (B, conv0_channels, H/2, W/2)
 
-        # Block 1: Conv - Relu - Pool
+        # Block 1: Conv - BatchNorm2d - Relu - Pool
         conv1_channels = 64
         std = np.sqrt(2.0 / (conv0_channels * 3 * 3))
         self.params["Conv1.W"] = std * np.random.randn(conv1_channels, conv0_channels, 3, 3).astype(PRECISION)
@@ -49,7 +49,7 @@ class KOCRNet(nn.Module):
         self.layers["Pool1"] = nn.MaxPooling(2, 2, stride=2)
         # shape after block 1: (B, conv1_channels, H/4, W/4)
 
-        # Block 2: Conv - Relu - Pool
+        # Block 2: Conv - BatchNorm2d - Relu - Pool
         conv2_channels = 64
         std = np.sqrt(2.0 / (conv1_channels * 3 * 3))
         self.params["Conv2.W"] = std * np.random.randn(conv2_channels, conv1_channels, 3, 3).astype(PRECISION)
@@ -62,7 +62,7 @@ class KOCRNet(nn.Module):
         self.layers["Pool2"] = nn.MaxPooling(2, 2, stride=2)
         # shape after block 2: (B, conv2_channels, H/8, W/8)
 
-        # Block 3: Conv - Relu - Pool
+        # Block 3: Conv - BatchNorm2d - Relu - Pool
         conv3_channels = 64
         std = np.sqrt(2.0 / (conv2_channels * 3 * 3))
         self.params["Conv3.W"] = std * np.random.randn(conv3_channels, conv2_channels, 3, 3).astype(PRECISION)
@@ -75,7 +75,7 @@ class KOCRNet(nn.Module):
         self.layers["Pool3"] = nn.MaxPooling(2, 2, stride=2)
         # shape after block 3: (B, conv3_channels, H/16, W/16)
 
-        # Block 4: Conv - Relu - Pool
+        # Block 4: Conv - BatchNorm2d - Relu - Pool
         conv4_channels = 64
         std = np.sqrt(2.0 / (conv3_channels * 3 * 3))
         self.params["Conv4.W"] = std * np.random.randn(conv4_channels, conv3_channels, 3, 3).astype(PRECISION)
@@ -88,7 +88,7 @@ class KOCRNet(nn.Module):
         self.layers["Pool4"] = nn.MaxPooling(2, 2, stride=2)
         # shape after block 4: (B, conv4_channels, H/32, W/32)
 
-        # Block 5: Conv - Relu - Pool
+        # Block 5: Conv - BatchNorm2d - Relu - Pool
         conv5_channels = 64
         std = np.sqrt(2.0 / (conv4_channels * 3 * 3))
         self.params["Conv5.W"] = std * np.random.randn(conv5_channels, conv4_channels, 3, 3).astype(PRECISION)
