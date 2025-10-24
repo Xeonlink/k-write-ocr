@@ -4,7 +4,7 @@
 
 <img src="docs/failed.png" width="100" />
 
-## 🔧 사용된 패키지
+## 🔧 초기 세팅
 
 ![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Typer](https://img.shields.io/badge/Typer-0B7EC8?style=for-the-badge&logo=fastapi&logoColor=white)
@@ -15,6 +15,8 @@
 ![Yaspin](https://img.shields.io/badge/Yaspin-009639?style=for-the-badge&logo=python&logoColor=white)
 ![Pyfiglet](https://img.shields.io/badge/Pyfiglet-306998?style=for-the-badge&logo=python&logoColor=white)
 ![jamo](https://img.shields.io/badge/jamo-orange?style=for-the-badge&logo=python&logoColor=white)
+
+[AI-Hub 대용량 손글씨 OCR 데이터](https://aihub.or.kr/aihubdata/data/view.do?dataSetSn=605) 다운로드. 자세한 사항은 [dataset_here.md](data/dataset_here.md)를 참고하세요.
 
 ## 📖 사용방법
 

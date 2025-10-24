@@ -12,4 +12,4 @@ wheels/
 .vscode/
 .gemini/
 GEMINI.md
-data/**
+data/[!dataset_here.md]**
