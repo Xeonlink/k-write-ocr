@@ -62,7 +62,7 @@ class KoreanCodec(Codec):
 
             for j in range(초성중성종성):
                 자소위치 = np.argmax(encoded[i, j])
-                if len(한글문자[j]) < 자소위치:
+                if len(한글문자[j]) <= 자소위치:
                     자소들.append(공백문자)
                 else:
                     자소들.append(한글문자[j][자소위치])
